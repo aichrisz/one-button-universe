@@ -1,12 +1,33 @@
 // One Button Universe simulation engine.
 // Self-contained: owns the canvas 2d context, physics, effects and ending logic.
 
+import { modeById, type ModeConfig } from './modes'
+
 export type EndingKind = 'stable' | 'collapse' | 'heat' | 'chaos'
 
 export interface Ending {
   kind: EndingKind
   title: string
   line: string
+}
+
+export type UniverseEventKind =
+  | 'tap'
+  | 'star-formed'
+  | 'planet-captured'
+  | 'supernova'
+  | 'star-split'
+  | 'black-hole-formed'
+  | 'black-hole-merged'
+  | 'black-hole-evaporated'
+  | 'star-swallowed'
+  | 'ending'
+
+export interface UniverseEvent {
+  kind: UniverseEventKind
+  x?: number
+  y?: number
+  ending?: EndingKind
 }
 
 export interface Stats {
@@ -99,8 +120,7 @@ const HOLD_START = 0.26 // seconds before a press becomes gravity
 const COMPRESS_START = 1.5 // seconds before a hold becomes compression
 const COMPRESS_FULL = 1.3 // seconds of compression until a black hole forms
 const DOUBLE_TAP = 0.3 // max gap between taps for a double tap
-const NATURAL_END = 132 // sim seconds until the universe concludes on its own
-const GYR_PER_SEC = 0.34
+export const GYR_PER_SEC = 0.34
 
 function mix(a: number[], b: number[], t: number): string {
   const r = Math.round(a[0] + (b[0] - a[0]) * t)
@@ -122,6 +142,7 @@ export class Universe {
   private stars: Star[] = []
   private holes: Hole[] = []
   private fx: Fx[] = []
+  private events: UniverseEvent[] = []
 
   private pointer = { x: 0, y: 0 }
   private pressed = false
@@ -132,6 +153,8 @@ export class Universe {
   private shake = 0
   private clumpTimer = 0
   private evolveTimer = 0
+  private chaosTimer = 0
+  private mode: ModeConfig = modeById('classic')
 
   private time = 0
   private entropy = 26
@@ -146,6 +169,24 @@ export class Universe {
     this.ctx = ctx
     this.reduced = reduced
     this.reset()
+  }
+
+  private emit(kind: UniverseEventKind, x?: number, y?: number, ending?: EndingKind) {
+    if (this.events.length < 64) this.events.push({ kind, x, y, ending })
+  }
+
+  drainEvents(): UniverseEvent[] {
+    const out = this.events
+    this.events = []
+    return out
+  }
+
+  setMode(m: ModeConfig) {
+    this.mode = m
+  }
+
+  private addEntropy(n: number) {
+    this.entropy = Math.min(100, this.entropy + n * this.mode.entropyMul)
   }
 
   resize(w: number, h: number, dpr: number) {
@@ -193,8 +234,10 @@ export class Universe {
     this.ending = null
     this.compress = 0
     this.shake = 0
+    this.chaosTimer = 0
     this.pressed = false
     this.suppressTap = false
+    this.events = []
     const seedCount = this.reduced ? 90 : 150
     const cx = this.w / 2
     const cy = this.h / 2
@@ -272,7 +315,8 @@ export class Universe {
   private tap() {
     this.spawnDust(this.pointer.x, this.pointer.y, this.reduced ? 9 : 14, 42, 0.15)
     this.fx.push({ kind: 'flash', x: this.pointer.x, y: this.pointer.y, age: 0, life: 0.35, max: 26, warm: 0.1 })
-    this.entropy = Math.min(100, this.entropy + 0.8)
+    this.addEntropy(0.8)
+    this.emit('tap', this.pointer.x, this.pointer.y)
   }
 
   private nova() {
@@ -290,7 +334,7 @@ export class Universe {
     } else {
       this.spawnDust(this.pointer.x, this.pointer.y, this.reduced ? 12 : 20, 90, 0.4)
       this.fx.push({ kind: 'ring', x: this.pointer.x, y: this.pointer.y, age: 0, life: 0.6, max: 90, warm: 0.5 })
-      this.entropy = Math.min(100, this.entropy + 3)
+      this.addEntropy(3)
     }
   }
 
@@ -298,6 +342,7 @@ export class Universe {
     const i = this.stars.indexOf(star)
     if (i === -1) return
     this.stars.splice(i, 1)
+    this.emit(star.mass > 55 ? 'star-split' : 'supernova', star.x, star.y)
     for (const p of star.planets) {
       this.spawnDust(star.x + Math.cos(p.angle) * p.dist, star.y + Math.sin(p.angle) * p.dist, 5, 60, p.warm)
     }
@@ -317,10 +362,10 @@ export class Universe {
         })
       }
       this.spawnDust(star.x, star.y, this.reduced ? 14 : 26, 130, 0.7)
-      this.entropy = Math.min(100, this.entropy + 7)
+      this.addEntropy(7)
     } else {
       this.spawnDust(star.x, star.y, Math.min(90, Math.round(star.mass * 1.1 + 18)), 150, 0.75)
-      this.entropy = Math.min(100, this.entropy + 11)
+      this.addEntropy(11)
     }
     this.fx.push({ kind: 'ring', x: star.x, y: star.y, age: 0, life: 0.9, max: 190, warm: 0.85 })
     this.fx.push({ kind: 'flash', x: star.x, y: star.y, age: 0, life: 0.5, max: 70, warm: 0.7 })
@@ -337,8 +382,9 @@ export class Universe {
       return true
     })
     this.holes.push({ x, y, vx: 0, vy: 0, mass: 18 + consumed * 0.7, spin: Math.random() * Math.PI * 2 })
+    this.emit('black-hole-formed', x, y)
     this.fx.push({ kind: 'darkring', x, y, age: 0, life: 1.0, max: 150, warm: 0.2 })
-    this.entropy = Math.min(100, this.entropy + 14)
+    this.addEntropy(14)
     if (!this.reduced) this.shake = Math.min(12, this.shake + 8)
   }
 
@@ -448,8 +494,9 @@ export class Universe {
         if (dist < 10 + Math.sqrt(hle.mass) * 2 + Math.sqrt(s.mass)) {
           hle.mass += s.mass * 0.9
           this.stars.splice(i, 1)
+          this.emit('star-swallowed', s.x, s.y)
           this.fx.push({ kind: 'flash', x: s.x, y: s.y, age: 0, life: 0.4, max: 40, warm: 0.3 })
-          this.entropy = Math.min(100, this.entropy + 4)
+          this.addEntropy(4)
         }
       }
       if (!this.stars.includes(s)) continue
@@ -478,8 +525,9 @@ export class Universe {
       if (s.mass > 120) {
         this.stars.splice(i, 1)
         this.holes.push({ x: s.x, y: s.y, vx: s.vx * 0.4, vy: s.vy * 0.4, mass: s.mass * 0.8, spin: 0 })
+        this.emit('black-hole-formed', s.x, s.y)
         this.fx.push({ kind: 'darkring', x: s.x, y: s.y, age: 0, life: 1.1, max: 170, warm: 0.1 })
-        this.entropy = Math.min(100, this.entropy + 9)
+        this.addEntropy(9)
         if (!this.reduced) this.shake = Math.min(12, this.shake + 7)
       }
     }
@@ -501,6 +549,7 @@ export class Universe {
         if (Math.hypot(o.x - hle.x, o.y - hle.y) < horizon + Math.sqrt(o.mass) * 1.8) {
           hle.mass += o.mass
           this.holes.splice(k, 1)
+          this.emit('black-hole-merged', hle.x, hle.y)
           this.fx.push({ kind: 'darkring', x: hle.x, y: hle.y, age: 0, life: 0.8, max: 120, warm: 0 })
         }
       }
@@ -511,6 +560,7 @@ export class Universe {
       hle.mass -= dt * (hle.mass < 24 ? 0.9 : 0.15)
       if (hle.mass < 6) {
         this.holes.splice(i, 1)
+        this.emit('black-hole-evaporated', hle.x, hle.y)
         this.fx.push({ kind: 'flash', x: hle.x, y: hle.y, age: 0, life: 0.6, max: 60, warm: 0.2 })
         this.spawnDust(hle.x, hle.y, 8, 70, 0.2)
       }
@@ -545,8 +595,19 @@ export class Universe {
               size: 1.8 + Math.random() * 1.8,
               warm: Math.random(),
             })
+            this.emit('planet-captured', s.x, s.y)
           }
         }
+      }
+    }
+
+    // chaos mode: the universe acts on its own
+    const every = this.mode.chaosEventEvery
+    if (every !== null && !this.ending) {
+      this.chaosTimer += dt
+      if (this.chaosTimer >= every) {
+        this.chaosTimer = 0
+        this.chaosEvent()
       }
     }
 
@@ -561,7 +622,7 @@ export class Universe {
     let sp = 0
     for (const d of this.dust) sp += Math.hypot(d.vx, d.vy)
     const avg = this.dust.length ? sp / this.dust.length : 0
-    const target = Math.min(100, avg * 1.15)
+    const target = Math.min(100, avg * 1.15 * this.mode.entropyMul)
     this.entropy += (target - this.entropy) * Math.min(1, dt * 0.35)
 
     const t = this.totals()
@@ -608,6 +669,7 @@ export class Universe {
           seed: Math.random() * 10,
           planets: [],
         })
+        this.emit('star-formed', x, y)
         this.fx.push({ kind: 'ring', x, y, age: 0, life: 0.7, max: 70, warm: 0.6 })
         this.fx.push({ kind: 'flash', x, y, age: 0, life: 0.45, max: 40, warm: 0.55 })
         return
@@ -615,25 +677,59 @@ export class Universe {
     }
   }
 
+  // random cosmic events for chaos mode: rogue nova, gravity surge, debris cloud
+  private chaosEvent() {
+    const x = this.w * (0.15 + Math.random() * 0.7)
+    const y = this.h * (0.15 + Math.random() * 0.7)
+    const roll = Math.random()
+    if (roll < 0.34 && this.stars.length > 0) {
+      this.supernova(this.stars[Math.floor(Math.random() * this.stars.length)])
+      return
+    }
+    if (roll < 0.67 && this.dust.length > 0) {
+      for (const d of this.dust) {
+        const dx = d.x - x
+        const dy = d.y - y
+        const dist = Math.hypot(dx, dy) + 24
+        if (dist < 280) {
+          d.vx += (dx / dist) * (5200 / dist)
+          d.vy += (dy / dist) * (5200 / dist)
+        }
+      }
+      this.fx.push({ kind: 'ring', x, y, age: 0, life: 0.8, max: 170, warm: 0.3 })
+      this.addEntropy(5)
+      if (!this.reduced) this.shake = Math.min(8, this.shake + 4)
+      return
+    }
+    this.spawnDust(x, y, this.reduced ? 10 : 18, 85, 0.5)
+    this.fx.push({ kind: 'flash', x, y, age: 0, life: 0.5, max: 46, warm: 0.5 })
+    this.addEntropy(3)
+  }
+
   private checkEndings(t: { starMass: number; planetMass: number; holeMass: number; dustMass: number; total: number }) {
-    if (this.ending || this.time < 18) return
+    if (this.ending || this.time < 18 || !this.mode.endingsEnabled) return
     if (t.total > 40 && t.holeMass / t.total > 0.62) {
       this.ending = ENDINGS.collapse
+      this.emit('ending', undefined, undefined, this.ending.kind)
       return
     }
     if (this.holes.length > 0 && this.stars.length === 0 && this.dust.length < 6) {
       this.ending = ENDINGS.collapse
+      this.emit('ending', undefined, undefined, this.ending.kind)
       return
     }
     if (this.time > 50 && this.holes.length === 0 && this.stars.length === 0 && this.dust.length < 12) {
       this.ending = ENDINGS.heat
+      this.emit('ending', undefined, undefined, this.ending.kind)
       return
     }
     if (this.time > 90 && this.stars.length >= 4 && this.stability > 75 && this.entropy < 40) {
       this.ending = ENDINGS.stable
+      this.emit('ending', undefined, undefined, this.ending.kind)
       return
     }
-    if (this.time >= NATURAL_END) {
+    const naturalEnd = this.mode.naturalEnd
+    if (naturalEnd !== null && this.time >= naturalEnd) {
       if (this.stars.length >= 3 && this.stability >= 55 && this.entropy < 60) {
         this.ending = ENDINGS.stable
       } else if (t.total >= 110 || this.entropy >= 55) {
@@ -641,6 +737,7 @@ export class Universe {
       } else {
         this.ending = ENDINGS.heat
       }
+      if (this.ending) this.emit('ending', undefined, undefined, this.ending.kind)
     }
   }
 

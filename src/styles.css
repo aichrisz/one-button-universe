@@ -428,6 +428,312 @@ body {
   transform: translateY(-1px);
 }
 
+/* ---------- mode pills and tool buttons ---------- */
+
+.hud-tools {
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  justify-content: space-between;
+}
+
+.modes,
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill,
+.tool {
+  pointer-events: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  background: rgba(4, 6, 10, 0.45);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 11px 4px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.pill:hover,
+.tool:hover {
+  color: var(--starlight);
+  border-color: var(--dim);
+}
+
+.pill.active {
+  color: var(--ink);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.tool.open {
+  color: var(--cyan);
+  border-color: rgba(121, 223, 230, 0.5);
+}
+
+.tool.off {
+  color: rgba(143, 160, 175, 0.55);
+  text-decoration: line-through;
+  text-decoration-color: rgba(240, 182, 97, 0.7);
+}
+
+.stat.deadline b {
+  color: var(--amber);
+}
+
+/* ---------- mission banner ---------- */
+
+.mission {
+  position: absolute;
+  left: 50%;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 92%;
+  padding: 8px 16px;
+  border: 1px solid rgba(240, 182, 97, 0.35);
+  border-radius: 99px;
+  background: rgba(4, 6, 10, 0.7);
+  pointer-events: none;
+  animation: hint-in 0.8s ease both;
+}
+
+.mission-tag {
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.mission-text {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--starlight);
+}
+
+/* ---------- toasts ---------- */
+
+.toasts {
+  position: absolute;
+  top: 148px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.toast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(240, 182, 97, 0.4);
+  background: linear-gradient(180deg, rgba(10, 15, 22, 0.94), rgba(4, 6, 10, 0.94));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+  animation: toast-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.toast-codex {
+  border-color: rgba(121, 223, 230, 0.4);
+}
+
+.toast-kicker {
+  font-size: 8px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.toast-codex .toast-kicker {
+  color: var(--cyan);
+}
+
+.toast b {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.toast-desc {
+  font-size: 10px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- codex and achievements panel ---------- */
+
+.panel-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(4, 6, 10, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: ending-in 0.3s ease both;
+}
+
+.panel {
+  width: min(480px, 100%);
+  max-height: min(72vh, 620px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(10, 15, 22, 0.96), rgba(4, 6, 10, 0.96));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  animation: card-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-head h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+}
+
+.panel-count {
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+}
+
+.panel-close {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.panel-close:hover {
+  color: var(--starlight);
+  border-color: var(--dim);
+}
+
+.panel-list {
+  list-style: none;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 8px 20px 18px;
+}
+
+.panel-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(143, 160, 175, 0.1);
+}
+
+.panel-list li:last-child {
+  border-bottom: none;
+}
+
+.panel-list b {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.panel-list p {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.55;
+}
+
+.panel-list li.locked {
+  opacity: 0.45;
+}
+
+.panel-list li.locked b::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border: 1px solid var(--dim);
+  border-radius: 50%;
+  vertical-align: 2px;
+}
+
+/* ---------- ending actions ---------- */
+
+.ending-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.share {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: none;
+  border: 1px solid rgba(121, 223, 230, 0.45);
+  border-radius: 99px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, transform 0.15s ease;
+}
+
+.share:hover {
+  color: var(--starlight);
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.share:disabled {
+  opacity: 0.5;
+  cursor: wait;
+  transform: none;
+}
+
 /* ---------- small screens ---------- */
 
 @media (max-width: 560px) {
@@ -447,8 +753,29 @@ body {
     width: 96px;
     height: 96px;
   }
-  .hint {
+  .hint,
+  .mission {
     bottom: calc(136px + env(safe-area-inset-bottom));
+  }
+  .pill,
+  .tool {
+    font-size: 9px;
+    padding: 4px 9px 3px;
+  }
+  .hud-tools {
+    margin-top: 8px;
+  }
+  .toasts {
+    top: 170px;
+    right: 10px;
+  }
+  .toast {
+    min-width: 150px;
+    max-width: 210px;
+    padding: 8px 12px;
+  }
+  .mission-text {
+    font-size: 10px;
   }
 }
 
