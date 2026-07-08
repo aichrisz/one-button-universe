@@ -4,9 +4,9 @@ A polished mobile-friendly one-button cosmic sandbox game. Tap, hold, double tap
 
 ## Live preview
 
-Temporary Cloudflare quick tunnel, while the local preview process is running:
+Permanent GitHub Pages deployment:
 
-https://institutes-bald-blogging-potter.trycloudflare.com
+https://aichrisz.github.io/one-button-universe/
 
 ## Features
 
